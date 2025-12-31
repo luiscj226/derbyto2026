@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Retro Race 2026</title>
+    <style>
+        :root {
+            --grass-color: #4CBB17;
+            --grass-dark: #3da012;
+            --lane-line: rgba(255, 255, 255, 0.6);
+            --ui-bg: rgba(0, 0, 0, 0.85);
+            --text-gold: #FFD700;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            font-family: 'Courier New', Courier, monospace; /* Retro font */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        /* --- Retro Header --- */
+        header {
+            background: #000;
+            color: var(--text-gold);
+            text-align: center;
+            padding: max(10px, env(safe-area-inset-top)) 10px 10px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            font-size: 1.2rem;
+            border-bottom: 4px solid var(--text-gold);
+            z-index: 10;
+        }
+
+        /* --- Grass Track --- */
+        .track-container {
+            flex: 1;
+            background-color: var(--grass-color);
+            /* Checkerboard grass pattern */
+            background-image: 
+                linear-gradient(45deg, var(--grass-dark) 25%, transparent 25%, transparent 75%, var(--grass-dark) 75%, var(--grass-dark)),
+                linear-gradient(45deg, var(--grass-dark) 25%, transparent 25%, transparent 75%, var(--grass-dark) 75%, var(--grass-dark));
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+            
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly;
+            position: relative;
+            border-left: 10px solid #8B4513; /* Start dirt */
+            border-right: 10px solid #8B4513; /* End dirt */
+        }
+
+        .finish-line {
+            position: absolute;
+            right: 10%;
+            top: 0;
+            bottom: 0;
+            width: 20px;
+            background-image: repeating-linear-gradient(
+                0deg,
+                #fff,
+                #fff 10px,
+                #000 10px,
+                #000 20px
+            );
+            z-index: 0;
+            border-left: 2px solid white;
+            border-right: 2px solid white;
+        }
+
+        .finish-label {
+            position: absolute;
+            right: 2%;
+            top: 50%;
+            transform: translateY(-50%) rotate(90deg);
+            color: white;
+            font-weight: bold;
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        /* --- Lanes & Horses --- */
+        .lane {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-bottom: 2px solid var(--lane-line);
+            display: flex;
+            align-items: center;
+        }
+        
+        .lane:last-child {
+            border-bottom: none;
+            background: rgba(255, 255, 0, 0.1); /* Highlight player lane */
+        }
+
+        .horse-wrap {
+            position: absolute;
+            left: 2%;
+            font-size: 3rem;
+            transition: left 0.1s linear;
+            z-index: 5;
+            filter: drop-shadow(2px 4px 0px rgba(0,0,0,0.3));
+        }
+        
+        /* Flip horse to face right */
+        .emoji {
+            display: block;
+            transform: scaleX(-1);
+        }
+
+        .player-indicator {
+            position: absolute;
+            left: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.8rem;
+            background: #000;
+            color: #fff;
+            padding: 2px 4px;
+            border-radius: 4px;
+            z-index: 6;
+        }
+
+        /* --- Controls --- */
+        .controls {
+            background: #222;
+            height: 25vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+            border-top: 4px solid var(--text-gold);
+        }
+
+        #runBtn {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #ff3b30;
+            border: 4px solid #fff;
+            box-shadow: 0 8px 0 #900;
+            color: white;
+            font-weight: 900;
+            font-size: 1.5rem;
+            font-family: inherit;
+            cursor: pointer;
+            active: scale(0.95);
+        }
+
+        #runBtn:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #900;
+        }
+
+        /* --- Modals/Overlays --- */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            text-align: center;
+            padding: 20px;
+            transition: opacity 0.3s;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+            display: none;
+        }
+
+        .modal h1 {
+            color: var(--text-gold);
+            font-size: 2rem;
+            text-transform: uppercase;
+            text-shadow: 4px 4px 0 #ff0000;
+            margin-bottom: 20px;
+        }
+
+        .modal p {
+            color: #fff;
+            font-size: 1.1rem;
+            line-height: 1.5;
+            margin-bottom: 30px;
+            max-width: 80%;
+        }
+
+        .btn-start {
+            background: var(--grass-color);
+            color: #fff;
+            border: 4px solid #fff;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-family: inherit;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 6px 0 var(--grass-dark);
+        }
+        
+        .btn-start:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 var(--grass-dark);
+        }
+
+        /* 8-bit blinking text */
+        .blink {
+            animation: blinker 1s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        TURF DERBY 2026
+    </header>
+
+    <div class="track-container">
+        <div class="finish-line"></div>
+        <div class="finish-label">2026</div>
+
+        <!-- Lane 1: CPU -->
+        <div class="lane" id="lane1">
+            <div class="horse-wrap" id="horse1" style="left: 2%"><span class="emoji">🐎</span></div>
+        </div>
+        
+        <!-- Lane 2: CPU -->
+        <div class="lane" id="lane2">
+            <div class="horse-wrap" id="horse2" style="left: 2%"><span class="emoji">🎠</span></div>
+        </div>
+
+        <!-- Lane 3: CPU -->
+        <div class="lane" id="lane3">
+            <div class="horse-wrap" id="horse3" style="left: 2%"><span class="emoji">🦓</span></div>
+        </div>
+
+        <!-- Lane 4: PLAYER -->
+        <div class="lane" id="lanePlayer">
+            <div class="player-indicator">YOU</div>
+            <div class="horse-wrap" id="horsePlayer" style="left: 2%"><span class="emoji">🏇</span></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="runBtn">RUN!</button>
+    </div>
+
+    <!-- START SCREEN -->
+    <div id="startScreen" class="modal">
+        <h1>Hyper Race</h1>
+        <p class="blink">PLEASE CLICK FAST TO RUN!</p>
+        <button class="btn-start" onclick="initGame()">START GAME</button>
+    </div>
+
+    <!-- RESULT SCREEN -->
+    <div id="resultScreen" class="modal hidden">
+        <h1 id="resultTitle"></h1>
+        <p id="resultMsg"></p>
+        <button class="btn-start" onclick="resetGame()">TRY AGAIN</button>
+    </div>
+
+    <script>
+        /* --- Game Variables --- */
+        let gameActive = false;
+        let positions = {
+            1: 2, // CPU 1
+            2: 2, // CPU 2
+            3: 2, // CPU 3
+            4: 2  // Player
+        };
+        const finishLine = 85; // Percent where finish line is
+        let cpuInterval = null;
+        
+        /* --- Audio Context (Web Audio API for 8-bit sound) --- */
+        let audioCtx;
+        let isMuted = false;
+        let nextNoteTime = 0;
+        let tempo = 120;
+        let schedulerTimer;
+
+        // Simple melody notes (frequencies in Hz) - Hyper Olympic inspired loop
+        const melody = [
+            523.25, 523.25, 587.33, 659.25, 523.25, 659.25, 783.99, 0, // C C D E C E G
+            523.25, 523.25, 587.33, 659.25, 523.25, 659.25, 783.99, 0,
+            880.00, 880.00, 783.99, 659.25, 587.33, 523.25, 440.00, 0
+        ];
+        let noteIndex = 0;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            startMusic();
+        }
+
+        function playNote(freq, time) {
+            if (isMuted || freq === 0) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.type = 'square'; // Classic NES sound
+            osc.frequency.value = freq;
+            
+            gainNode.gain.setValueAtTime(0.05, time); // Volume
+            gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start(time);
+            osc.stop(time + 0.1);
+        }
+
+        function scheduleNotes() {
+            const secondsPerBeat = 60.0 / tempo;
+            // Look ahead 0.1 seconds
+            while (nextNoteTime < audioCtx.currentTime + 0.1) {
+                playNote(melody[noteIndex], nextNoteTime);
+                nextNoteTime += secondsPerBeat / 4; // 16th notes
+                noteIndex++;
+                if (noteIndex >= melody.length) noteIndex = 0;
+            }
+            if(gameActive) {
+                schedulerTimer = requestAnimationFrame(scheduleNotes);
+            }
+        }
+
+        function startMusic() {
+            nextNoteTime = audioCtx.currentTime;
+            noteIndex = 0;
+            if(!schedulerTimer) scheduleNotes();
+        }
+
+        function stopMusic() {
+            if(schedulerTimer) cancelAnimationFrame(schedulerTimer);
+            schedulerTimer = null;
+        }
+
+        /* --- Game Logic --- */
+
+        function initGame() {
+            document.getElementById('startScreen').classList.add('hidden');
+            gameActive = true;
+            positions = { 1: 2, 2: 2, 3: 2, 4: 2 };
+            updateVisuals();
+            initAudio();
+            
+            // Start CPU Logic
+            cpuInterval = setInterval(moveCPUs, 50); // Updates every 50ms
+        }
+
+        function resetGame() {
+            document.getElementById('resultScreen').classList.add('hidden');
+            document.getElementById('startScreen').classList.remove('hidden');
+            // Reset positions visually immediately
+            positions = { 1: 2, 2: 2, 3: 2, 4: 2 };
+            updateVisuals();
+            stopMusic();
+        }
+
+        function moveCPUs() {
+            if (!gameActive) return;
+
+            // Move each CPU (1, 2, 3) randomly
+            for (let i = 1; i <= 3; i++) {
+                // Random speed variance to make it exciting
+                // Base speed + random burst
+                let speed = 0.2 + (Math.random() * 0.4); 
+                
+                // Catch-up logic: if CPU is far behind player (4), boost slightly
+                if (positions[4] > positions[i] + 15) {
+                    speed += 0.2;
+                }
+
+                positions[i] += speed;
+                
+                // Update visual
+                const horseEl = document.getElementById(`horse${i}`);
+                horseEl.style.left = positions[i] + '%';
+
+                if (positions[i] >= finishLine) {
+                    endGame('cpu');
+                }
+            }
+        }
+
+        // Player Control
+        const btn = document.getElementById('runBtn');
+        
+        function playerRun(e) {
+            if (e.cancelable && e.type === 'touchstart') e.preventDefault();
+            if (!gameActive) return;
+
+            // Player moves fixed amount per tap + tiny random variation
+            positions[4] += (1.2 + Math.random());
+            
+            const horseEl = document.getElementById('horsePlayer');
+            horseEl.style.left = positions[4] + '%';
+
+            if (positions[4] >= finishLine) {
+                endGame('player');
+            }
+        }
+
+        btn.addEventListener('touchstart', playerRun, { passive: false });
+        btn.addEventListener('mousedown', playerRun);
+
+        function updateVisuals() {
+            for(let i=1; i<=3; i++) document.getElementById(`horse${i}`).style.left = positions[i] + '%';
+            document.getElementById('horsePlayer').style.left = positions[4] + '%';
+        }
+
+        function endGame(winner) {
+            gameActive = false;
+            clearInterval(cpuInterval);
+            stopMusic();
+
+            const title = document.getElementById('resultTitle');
+            const msg = document.getElementById('resultMsg');
+            const screen = document.getElementById('resultScreen');
+
+            if (winner === 'player') {
+                // Play Win Sound (high pitch arpeggio)
+                playWinSound();
+                title.innerText = "WINNER!";
+                title.style.color = "#FFD700";
+                msg.innerText = "Congratulation welcome to 2026";
+            } else {
+                // Play Lose Sound (low pitch slide)
+                playLoseSound();
+                title.innerText = "GAME OVER";
+                title.style.color = "#ff3b30";
+                msg.innerText = "whatever you have pass your worst congratulation welcome to 2026";
+            }
+
+            setTimeout(() => {
+                screen.classList.remove('hidden');
+            }, 500);
+        }
+
+        /* --- SFX --- */
+        function playWinSound() {
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(523.25, now);
+            osc.frequency.setValueAtTime(659.25, now + 0.1);
+            osc.frequency.setValueAtTime(783.99, now + 0.2);
+            osc.frequency.setValueAtTime(1046.50, now + 0.3); // High C
+            
+            gain.gain.value = 0.1;
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.8);
+        }
+
+        function playLoseSound() {
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.linearRampToValueAtTime(50, now + 0.5); // Slide down
+            
+            gain.gain.value = 0.1;
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.5);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.5);
+        }
+
+    </script>
+</body>
+</html>
